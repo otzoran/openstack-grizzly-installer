@@ -1,0 +1,39 @@
+###
+### interfaces(5) for Topstein all-in-one
+### Values are for the reference virtualbox setup, adjust for baremetal
+###
+
+# Copyright (C) 2012-2013 Ori Tzoran <ori.tzoran@tikalk.com>
+# This file is part of Topstein, Tikal's OpenStack Installer. 
+# Legal disclaimer is in 'install-ostk.sh'
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The primary network interface
+auto eth0
+iface eth0 inet dhcp
+
+# OSTK Public interface [vboxnet0]
+# this netmask accounts for routing the float_range of 172.16.172.0/28
+auto eth1
+iface eth1 inet static
+    address 172.16.0.5
+    netmask 255.255.0.0
+    network 172.16.0.0
+    broadcast 172.16.255.255
+
+# OSTK Private interface [vboxnet1]
+auto eth2
+iface eth2 inet manual
+	up ifconfig $IFACE 0.0.0.0 up
+	up ifconfig $IFACE promisc
+
+# VM network bridge 
+# nova-network will fill in the details
+auto br100
+iface br100 inet manual
+	bridge_ports none
+	bridge_stp   off
+	bridge_fd    0
