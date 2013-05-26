@@ -34,6 +34,14 @@ else
 	exit 1
 fi
 
+# Source in functions 
+if [ -f xfunctions.sh ]; then
+	.   xfunctions.sh
+else
+	echo "$prog [Error]: functions file\"xfunctions.sh\" not found"
+	exit 1
+fi
+
 echo
 printf "==============================================================================\n"
 printf "Installing Openstack Glance image service                                     \n"

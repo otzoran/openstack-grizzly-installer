@@ -163,8 +163,13 @@ function assert_keystone_catalog_sql
 	printf "\nVerify that keystone.conf is configured to use mysql:\n"
 	tmpf=/tmp/keystone_catalog.$$
 	sed '/^#.*/d' /etc/keystone/keystone.conf | fgrep -A5 '[catalog]' > $tmpf
-	if grep -q '^driver[ \t]*=[ \t]*keystone.catalog.backends.sql.Catalog'; then
+	if grep -q '^driver[ \t]*=[ \t]*keystone.catalog.backends.sql.Catalog' $tmpf; then
 		printf "... ok\n"
+	else
+		printf "Check that /etc/keystone/keystone.conf has those lines:\n "; 
+		printf "  [catalog]\n"
+		printf "  driver = keystone.catalog.backends.sql.Catalog\n"
+		printf "hit Enter to cont: "; read ANS; echo
 	fi
 }
 
@@ -219,7 +224,7 @@ function create_keystonerc
 	fi
 
 	cat << EOF  > $RC_FILE
-	export OS_USERNAME=admin
+	export OS_USERNAME=$ADMIN_USER
 	export OS_PASSWORD=$ADMIN_USER_PASSWORD
 	export OS_TENANT_NAME=$DEFAULT_TENANT
 	export OS_AUTH_URL=http://$KEYSTONE_ENDPOINT:5000/v2.0/
@@ -232,9 +237,10 @@ EOF
 	printf "Verifying the Identity Service Installation:\n"
 	unset OS_SERVICE_ENDPOINT OS_SERVICE_TOKEN
 	source $RC_FILE
-	set -x
-	keystone token-get
-	set +x
+# this has too much output...
+#	set -x
+#	keystone token-get
+#	set +x
 	printf "Verifying admin account has authorization to perform administrative commands:\n"
 	set -x
 	keystone user-list

@@ -338,7 +338,7 @@ function mysql_install
 	##
 	# merged here code from folsom, essex and the Install-Doc
 	##
-	printf "Pre-seed MySQL based on $configfile\n"
+	printf "\n\nPre-seed MySQL based on $configfile\n"
 
 	cat <<MYSQL_PRESEED | debconf-set-selections
 mysql-server-5.5 mysql-server/root_password password $MYSQL_ROOT_PASS
@@ -358,8 +358,6 @@ MYSQL_PRESEED
 	#TODO: now git cmmit in /etc with ostk message
 
 	service mysql restart
-
-	printf "\n\n"
 
 }
 
