@@ -163,8 +163,6 @@ function install_controller
 
 function configure_controller
 {
-	mysql_create_service_database "nova"
-
 	printf "\nCopying template --> nova.conf:\n"
 		mv -v $NOVA_CONF $NOVA_CONF.vanilla
 		cp -v nova.conf.template $NOVA_CONF
@@ -178,6 +176,8 @@ function configure_controller
         sed -i "s/%SERVICE_TENANT_NAME%/$SERVICE_TENANT/g" $NOVA_API_PASTE
         sed -i "s/%SERVICE_USER%/nova/g"                   $NOVA_API_PASTE
         sed -i "s/%SERVICE_PASSWORD%/$SERVICE_PASS/g"      $NOVA_API_PASTE
+
+	mysql_create_service_database "nova"
 
 	printf "\nCreating nova tables in mysql...\n"
 	set -x
@@ -279,12 +279,12 @@ function create_cn_tarball
 		cp -v /etc/nova/nova.conf       cc_nova.conf
 		cp -v /etc/nova/api-paste.ini   cc_api-paste.ini
 		cp -v /etc/network/interfaces   cc_interfaces
-		grep $HOSTNAME /etc/hosts >     cc_hosts
+		grep $HOSTNAME /etc/hosts >     cc_host_line
 	printf "Preparing tarball for compute-node[s] in $CN_TARBALL:\n"
 		tar -czvf  $CN_TARBALL                                           \
-			install-ostk.sh ostk-prereq.sh ostk-nova.sh nova_services.sh \
+			install-ostk.sh ostk-prerequisites.sh ostk-nova.sh xfunctions.sh \
 			openstack.conf nova.conf.template keystonerc tikal.id_rsa*      \
-			cc_nova.conf cc_api-paste.ini cc_interfaces cc_hosts
+			cc_nova.conf cc_api-paste.ini cc_interfaces cc_host_line
 		chown ostk $CN_TARBALL
 		chmod 640  $CN_TARBALL
 		mv -v $CN_TARBALL /home/ostk
@@ -311,22 +311,22 @@ function configure_compute
 
 	## CN installation
 	# - ubuntu server with user ostk
-	# - login as ostk, create ~ostk/OstkInstal
-	# - scp the tarball from the CC to ~ostk/OstkInstal
+	# - login as ostk, create ~ostk/ostk-install
+	# - scp the tarball from the CC to ~ostk/ostk-install
 	# - untar
-	# - sudo -i && cd ~ostk/OstkInstal
+	# - sudo -i && cd ~ostk/ostk-install
 	# - cc_interfaces -->> /etc/network/interfaces
-	# - cc_hosts -->> add line to /etc/hosts
-	# - run install-ostk.sh compute-node
+	# - cc_host_line  -->> line to add to CN's /etc/hosts
+	# - run install-ostk.sh compute
 	#..................................................
 
 
 	fname=${FUNCNAME[0]}
-	[[ $NODE_TYPE == compute ]] || return 0
+	[[ $NODE_TYPE != compute ]] && return 0
 
 	printf "Upon entering $fname I assume:\n"
 	printf "+ /etc/network/interfaces edited/ready for CN (use cc_interfaces as template)\n"
-	printf "+ /etc/hosts was updated to enlist the CC     (use cc_hosts for that)\n"
+	printf "+ /etc/hosts was updated to enlist the CC     (use cc_host_line for that)\n"
 	printf "I will take care of cc_nova.conf and cc_api-paste.ini below\n" 
 	printf "hit Enter to cont: "; read ANS; echo
 
@@ -367,7 +367,7 @@ check_set_ip_forwarding
 if [[ $NODE_TYPE == "all-in-one" || $NODE_TYPE == controller ]]; then
 	install_controller		# nova_services are stopped here
 	configure_controller
-	nova_services start
+	nova_services start || echo		# trik to avoid exit if daemon up already
 	verify_services
 	create_secgroup_default
 	create_vmnetwork
@@ -378,7 +378,7 @@ fi
 if [[ $NODE_TYPE == "all-in-one" || $NODE_TYPE == compute ]]; then
 	install_compute
 	configure_compute
-	nova_services start		#on CN expect to start libvirt-bin nova-compute 
+	nova_services start || echo		# CN will start just libvirt-bin nova-compute 
 	verify_services
 	printf "You may use the function \"delete_virbr0\" to wipe this interface\n"
 fi
