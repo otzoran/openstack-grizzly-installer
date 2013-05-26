@@ -372,6 +372,12 @@ function mysql_remedy_error_1045
 
 }
 
+function rabbitmq_install
+{
+	printf "Install the messaging queue server:\n"
+	apt-get install rabbitmq-server
+}
+
 # Main
 verify_networking
 set_hostname_properly		#needed for mysql setup
@@ -384,6 +390,8 @@ if [[ $NODE_TYPE == controller || $NODE_TYPE == "all-in-one" ]] ; then
 		# in folsom this was inside keystone, grizzly moved it here - what4?
 	mysql_install
 	mysql_remedy_error_1045
+		# in folsom this was inside nova, grizzly moved it here ...
+	rabbitmq_install
 fi
 
 printf "\nInstalling prerequisites for OpenStack finished\n"

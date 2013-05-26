@@ -165,3 +165,78 @@ function mysql_create_service_database
 	return 0
 
 }
+
+
+function nova_services 
+{
+	[ $# -lt 1 ] && { echo "missing arg: stop|start|restart|status"; return 1; }
+
+	# due to bug Ubuntu “nova” package Bugs Bug #1043864
+	# libvirt-bin need be started before nova-compute
+
+		# !!! Order below is important !!!
+	action=$1
+	for nova_srv in 	\
+		libvirt-bin		\
+		nova-api		\
+		nova-cert		\
+		nova-compute	\
+		nova-conductor	\
+		nova-consoleauth 	\
+		nova-network	\
+		nova-novncproxy	\
+		nova-objectstore 	\
+		nova-scheduler	\
+		rabbitmq-server
+	do
+		if [ -e /etc/init.d/$nova_srv ]; then
+			service $nova_srv $action
+		fi
+	done
+
+	#TODO: 
+	# services that may belong here:
+	# - epmd (belongs to rabbitmq)
+	# - dnsmasq (belongs to libvirt-dnsmasq) 
+
+	return 0	# important - if not, may cause exit in caller (that sets errexit)
+}
+
+function cinder_services 
+{
+	[ $# -lt 1 ] && { echo "missing arg: stop|start|restart|status"; return 1; }
+	action=$1
+	for cinder_srv in 	\
+		cinder-api		\
+		cinder-volume	\
+		cinder-scheduler	\
+		tgt				
+	do
+		if [ -e /etc/init.d/$cinder_srv ]; then
+			service $cinder_srv $action
+		fi
+	done
+	# services that may belong here:
+	# + iscsi-network-interface
+	# processes that stay around, suspected to be remainders of slopy stopped service:
+	# - iscsi
+	return 0
+}
+
+
+function delete_virbr0
+{
+		#This will remove iface virbr0 and iptables rules set by libvirt
+		#which arne't used by nova, clutter and may confuse
+		# exec requires libvirt up
+	fname=${FUNCNAME[0]}
+	printf "\nCleanup libvirt unused default net and virbr0 interface:\n"
+	if [ -e /var/run/libvirt/libvirt-sock ]; then
+		set -x
+		virsh net-destroy default
+		virsh net-undefine default
+		set +x
+	else
+		printf "libvirt is down, need it up to run $fname\n"
+	fi
+}

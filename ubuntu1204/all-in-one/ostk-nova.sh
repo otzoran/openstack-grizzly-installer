@@ -1,13 +1,14 @@
 #!/bin/bash
 
 # Copyright (C) 2012-2013 Ori Tzoran <ori.tzoran@tikalk.com>
-# This file is part of Tikal's OpenStack Installer. See legal disclaimer install-ostk.sh
+# This file is part of Topstein, Tikal's OpenStack Installer. 
+# Legal disclaimer is in 'install-ostk.sh'
 
-# installs nova
+# Installs nova
 # handles CC, CN type
 # see configure_compute::doc for assumptions on entrance
 
-set -e 
+set -o errexit -o errtrace
 
 prog=$(basename $0)
 configfile=openstack.conf
@@ -27,7 +28,6 @@ else
 	exit 1
 fi
 
-
 if [ -r keystonerc ]; then
 	source keystonerc
 else
@@ -35,10 +35,11 @@ else
 	exit 1
 fi
 
-if [ -x ./nova_services.sh ]; then
-	function nova_services { $PWD/nova_services.sh $1; }
+# Source in functions 
+if [ -f xfunctions.sh ]; then
+	.   xfunctions.sh
 else
-	printf "$prog [Error]: missing script nova_services.sh\n"
+	echo "$prog [Error]: functions file\"xfunctions.sh\" not found"
 	exit 1
 fi
 
@@ -55,7 +56,7 @@ if [[ -z $NODE_TYPE ]]; then
 	exit 1 
 fi
 case $NODE_TYPE in
-	all-in-one|cloud-controller|compute-node)
+	"all-in-one"|controller|compute)
 		;;
 	*)
 		printf "$prog Error: $NODE_TYPE not supported\n"
@@ -65,7 +66,7 @@ esac
 
 echo
 printf "==============================================================================\n"
-printf "Installing Openstack nova on host $HOSTNAME node type $NODE_TYPE\n"
+printf "Installing Openstack nova on host $HOSTNAME node type $NODE_TYPE              \n"
 printf "==============================================================================\n"
 printf "Hit enter to continue: "; read ANS; echo
 
@@ -95,9 +96,9 @@ function check_set_ip_forwarding
 	exit 1
 } # check_set_ip_forwarding
 
-function install_nova_compute
+function install_compute
 {
-		#OO: packages are as listed in the Install-Doc
+		#OO: packages are as listed in Install&Deploy
 		#OO: vbox wont run nova-compute-kvm (libvirtError.... 'hvm')
 
 	case $LIBVIRT_TYPE in
@@ -111,6 +112,7 @@ function install_nova_compute
 	esac
 
 	#OO: added pm-utils cause libvirt doesn't suggest it [see bug #994476]
+	# TODO: check if fixed...
 	printf "\n\nInstalling nova packages for compute\n"
 	set -x
 	apt-get install nova-compute $NOVA_COMPUTE_HYPER	
@@ -119,37 +121,37 @@ function install_nova_compute
 	# pm-utils is used by libvirt, for some reason it's not in "suggested"
 	printf "\nInstalling additional packages (fix dependencies)\n"
 	set -x
-	apt-get install pm-utils
+	apt-get install  pm-utils
 	set +x
 
-	if [[ $NODE_TYPE == "compute-node" ]]; then
+	if [[ $NODE_TYPE == "compute" ]]; then
 		printf "\nstopping nova services:\n"
 		nova_services stop
 		printf "\nFinished compute related nova installation. nova services were stopped till configured.\n"
 	fi
 	printf "hit Enter to cont: "; read ANS; echo
 	return 0
-} # install_nova_compute
+} # install_compute
 
 function install_controller
 {
 	printf "\n\nInstalling nova packages for controller\n"
 	set -x
 	apt-get install 			\
-		nova-ajax-console-proxy	\
 		nova-api			\
 		nova-cert			\
 		nova-consoleauth	\
+		nova-conductor		\
 		nova-doc			\
 		nova-network		\
 		nova-novncproxy		\
-		nova-objectstore	\
 		nova-scheduler		\
-		novnc				\
-		rabbitmq-server
+		novnc				
 	set +x
 
 	printf "\nstopping nova services:\n"
+	# Stop the nova- services prior to running db sync. 
+	# Otherwise your logs show errors because the database has not yet been populated
 	nova_services stop
 
 	printf "\nFinished controller related nova installation. nova services were stopped till configured.\n"
@@ -161,6 +163,8 @@ function install_controller
 
 function configure_controller
 {
+	mysql_create_service_database "nova"
+
 	printf "\nCopying template --> nova.conf:\n"
 		mv -v $NOVA_CONF $NOVA_CONF.vanilla
 		cp -v nova.conf.template $NOVA_CONF
@@ -170,89 +174,24 @@ function configure_controller
 	# Paste file
 	printf "\nConfiguring $NOVA_API_PASTE:\n"
 		cp -vp $NOVA_API_PASTE $NOVA_API_PASTE.vanilla
-        sed -i "s/127.0.0.1/$KEYSTONE_ENDPOINT/g" $NOVA_API_PASTE
+        sed -i "s/127.0.0.1/$KEYSTONE_ENDPOINT/g"          $NOVA_API_PASTE
         sed -i "s/%SERVICE_TENANT_NAME%/$SERVICE_TENANT/g" $NOVA_API_PASTE
-        sed -i "s/%SERVICE_USER%/nova/g" $NOVA_API_PASTE
-        sed -i "s/%SERVICE_PASSWORD%/$SERVICE_PASS/g" $NOVA_API_PASTE
+        sed -i "s/%SERVICE_USER%/nova/g"                   $NOVA_API_PASTE
+        sed -i "s/%SERVICE_PASSWORD%/$SERVICE_PASS/g"      $NOVA_API_PASTE
 
 	printf "\nCreating nova tables in mysql...\n"
 	set -x
 	nova-manage db sync
 	set +x
 	printf "\nNo output means the command completed correctly (ignore DEBUG lines)\n"
-	printf "If this isnt the case examine /var/log/nova/nova-manage.log\n"
+	printf "If not, examine /var/log/nova/nova-manage.log\n"
 	printf "hit Enter to cont: "; read ANS; echo
 
 } # configure_controller
 
-function configure_compute
-{
-	# Terminology
-	#	CC = Cloud Controller
-	#	CN = Compute Node
-	#..................................................
-
-	## Workflow
-	# ostk installation is run on CC, during which 
-	# a tarball is prepared for all CNs.
-	# this tarball has all files necessary to 
-	# install a CN
-	#..................................................
-
-	## CN installation
-	# - ubuntu server with user ostk
-	# - login as ostk, create ~ostk/OstkInstal
-	# - scp the tarball from the CC to ~ostk/OstkInstal
-	# - untar
-	# - sudo -i && cd ~ostk/OstkInstal
-	# - cc_interfaces -->> /etc/network/interfaces
-	# - cc_hosts -->> add line to /etc/hosts
-	# - run install-ostk.sh compute-node
-	#..................................................
-
-	#OO: not sure if api-paste.ini is required (in pack nova-common:)
-
-	fname=${FUNCNAME[0]}
-	[[ $NODE_TYPE == compute-node ]] || return 0
-
-	printf "Upon entering $fname I assume:\n"
-	printf "+ /etc/network/interfaces edited/ready for CN (use cc_interfaces as template)\n"
-	printf "+ /etc/hosts was updated to enlist the CC     (use cc_hosts for that)\n"
-	printf "I will take care of cc_nova.conf and cc_api-paste.ini below\n" 
-	printf "hit Enter to cont: "; read ANS; echo
-
-	if [ -r cc_nova.conf ]; then
-		mv -v $NOVA_CONF $NOVA_CONF.vanilla
-		cp -v cc_nova.conf nova.conf.template
-		printf "\nOpen another term. As root, Edit $PWD/nova.conf.template, modify it for Compute Node\n"
-		printf "hit Enter when done: "; read ANS; echo
-		printf "Are you sure? "; read ANS; echo
-		cp -v nova.conf.template $NOVA_CONF
-		chown -v nova:nova $NOVA_CONF
-		chmod -v 640 $NOVA_CONF
-	else
-		printf "$prog[$fname] Error: File missing cc_nova.conf\n"
-	fi
-
-	if [ -r cc_api-paste.ini ]; then
-		mv -v $NOVA_API_PASTE $NOVA_API_PASTE.vanilla
-		cp -vp cc_api-paste.ini $NOVA_API_PASTE
-	else
-		printf "$prog[$fname] Error: File missing cc_api-paste.ini\n"
-	fi
-
-	printf "hit Enter to cont: "; read ANS; echo
-
-	## add CC_HOST name to /etc/hosts
-
-} #configure_compute
 
 function verify_services
 {
-		#OO: Stop the nova- services prior to running db sync. 
-		# Otherwise your logs show errors because the database has not yet been populated
-	#printf "\nStarting nova services:\n"
-	#nova_services start
 
 	printf "\nVerifying nova services are up:\n"
 	printf " + nova-api isn't listed, that's ok (or at least isn't a surprise)\n"
@@ -267,23 +206,6 @@ function verify_services
 	return 0
 } 
 
-function delete_virbr0
-{
-		
-	#This will remove iface virbr0 and iptables rules set by libvirt
-	#which arne't used by nova, clutter and may confuse
-	# exec requires libvirt up
-	fname=${FUNCNAME[0]}
-	printf "\nCleanup libvirt unused default net and virbr0 interface:\n"
-	if [ -e /var/run/libvirt/libvirt-sock ]; then
-		set -x
-		virsh net-destroy default
-		virsh net-undefine default
-		set +x
-	else
-		printf "libvirt is down, need it up to run $fname\n"
-	fi
-}
 
 function create_secgroup_default
 {
@@ -301,10 +223,8 @@ function create_vmnetwork
 {
 	printf "\nCreating the Network for Compute VMs (Private, fixed_range)\n"
 	#You must run the command that create the network that the virtual machines use. 
-	#We're labeling it ostk_vmnet_1 ('private' in the doc)
-	#OO-doc: doesnt say were run (on compute? controller?)
 	#OO-bug: fixed_range_v4 undocumented
-	#OO: memo delete
+	#OO: to delete use this:
 	# nova-manage network delete 192.168.100.0/24
 	set -x
 		nova-manage network create $VMNETWORK_NAME 	\
@@ -331,7 +251,7 @@ function create_floating_ips
 
 function add_keypair
 {
-	printf "\n\nAdding a keypair\n"
+	printf "\nAdding a keypair\n"
 	printf "The Compute service can inject an SSH public key into an account on the instance\n"
 	# will output fingerprint of public
 	set -x
@@ -374,22 +294,78 @@ function create_cn_tarball
 	return 0
 } #create_cn_tarball
 
+
+function configure_compute
+{
+	# Terminology
+	#	CC = Cloud Controller
+	#	CN = Compute Node
+	#..................................................
+
+	## Workflow
+	# ostk installation is run on CC, during which 
+	# a tarball is prepared for all CNs.
+	# this tarball has all files necessary to 
+	# install a CN
+	#..................................................
+
+	## CN installation
+	# - ubuntu server with user ostk
+	# - login as ostk, create ~ostk/OstkInstal
+	# - scp the tarball from the CC to ~ostk/OstkInstal
+	# - untar
+	# - sudo -i && cd ~ostk/OstkInstal
+	# - cc_interfaces -->> /etc/network/interfaces
+	# - cc_hosts -->> add line to /etc/hosts
+	# - run install-ostk.sh compute-node
+	#..................................................
+
+
+	fname=${FUNCNAME[0]}
+	[[ $NODE_TYPE == compute ]] || return 0
+
+	printf "Upon entering $fname I assume:\n"
+	printf "+ /etc/network/interfaces edited/ready for CN (use cc_interfaces as template)\n"
+	printf "+ /etc/hosts was updated to enlist the CC     (use cc_hosts for that)\n"
+	printf "I will take care of cc_nova.conf and cc_api-paste.ini below\n" 
+	printf "hit Enter to cont: "; read ANS; echo
+
+	if [ -r cc_nova.conf ]; then
+		mv -v $NOVA_CONF $NOVA_CONF.vanilla
+		cp -v cc_nova.conf nova.conf.template
+		printf "\nOpen another term. As root, Edit $PWD/nova.conf.template, modify it for Compute Node\n"
+		printf "hit Enter when done: "; read ANS; echo
+		printf "Are you sure? "; read ANS; echo
+		cp -v nova.conf.template $NOVA_CONF
+		chown -v nova:nova $NOVA_CONF
+		chmod -v 640 $NOVA_CONF
+	else
+		printf "$prog[$fname] Error: File missing cc_nova.conf\n"
+	fi
+
+	if [ -r cc_api-paste.ini ]; then
+		mv -v $NOVA_API_PASTE $NOVA_API_PASTE.vanilla
+		cp -vp cc_api-paste.ini $NOVA_API_PASTE
+	else
+		printf "$prog[$fname] Error: File missing cc_api-paste.ini\n"
+	fi
+
+	printf "hit Enter to cont: "; read ANS; echo
+
+	## add CC_HOST name to /etc/hosts
+
+} #configure_compute
+
 # Main
 
 #OO: to allow vbox snap, move out: 
-# create_vmnetwork 
+# X  create_vmnetwork 
 # v/ create_instance
 # v/ attach_floating_ip 
 
-	#
-	# on all node types:
-	#
 check_set_ip_forwarding
-
-	#
-	# CC type node
-if [[ $NODE_TYPE == "all-in-one" || $NODE_TYPE == cloud-controller ]]; then
-	install_controller
+if [[ $NODE_TYPE == "all-in-one" || $NODE_TYPE == controller ]]; then
+	install_controller		# nova_services are stopped here
 	configure_controller
 	nova_services start
 	verify_services
@@ -399,21 +375,20 @@ if [[ $NODE_TYPE == "all-in-one" || $NODE_TYPE == cloud-controller ]]; then
 	add_keypair
 	create_cn_tarball
 fi
-	#
-	# CN 
-if [[ $NODE_TYPE == "all-in-one" || $NODE_TYPE == compute-node ]]; then
-	install_nova_compute
-	configure_compute		#actual exec for compute only
+if [[ $NODE_TYPE == "all-in-one" || $NODE_TYPE == compute ]]; then
+	install_compute
+	configure_compute
 	nova_services start		#on CN expect to start libvirt-bin nova-compute 
 	verify_services
-	delete_virbr0
+	printf "You may use the function \"delete_virbr0\" to wipe this interface\n"
 fi
 
-#create_instance
-#attach_floating_ip
+printf "\n\nAt this point you may create an instance from CLI:\n"
+printf "   . keystonerc\n   . xfunctions.sh\n   create_instance MY_INSTANCE_NAME\n"
+printf "and attach a floating IP to it:\nusing the function attach_floating_ip\n\n"
 
 printf "==============================================================================\n"
-printf "Nova installation and configuration is complete.\n"
+printf "Nova installation and configuration is complete.                              \n"
 printf "==============================================================================\n"
 printf "Hit enter to continue: "; read ANS; echo
 

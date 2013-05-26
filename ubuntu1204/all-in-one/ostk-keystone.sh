@@ -74,7 +74,7 @@ function keystone_install
 		 $KEYSTONE_CONF
 
 	## replace the sqlite connection by mysql [2]
-	rm -f /var/lib/keystone/keystone.db
+	rm -v /var/lib/keystone/keystone.db
 
 	#OO: Note on permissions: 
 	# keystone.conf is shipped as root:root 644 (in the ubuntu pack)
@@ -204,6 +204,7 @@ function create_keystonerc
 	# - port to use in OS_AUTH_URL (35357 in I&D, 5000 in B-I)
 	#   This should be 35357, as "administrative commands MUST be performed against the admin API port: 35357"
 	#   see http://docs.openstack.org/grizzly/openstack-compute/install/apt/content/verifying-identity-install.html
+	#   BUT in verifying glance, OS_AUTH_URL is assigned port 5000 ...
 	# - naming of SERVICE_ENDPOINT: with or w/o OS_
 	# - naming of ERVICE_TOKEN: with or w/o OS_
 	# - name of the RC file: I&D uses "keystonerc", B-I uses "openrc" ...
