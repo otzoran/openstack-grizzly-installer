@@ -15,7 +15,7 @@
 # DOC bug: file is here:
 # /usr/share/pyshared/horizon/dashboards/nova/instances/templates/instances/_detail_vnc.html
 
-set -e 
+set -o errexit -o errtrace
 
 prog=$(basename $0)
 configfile=openstack.conf
@@ -37,7 +37,7 @@ fi
 
 echo
 printf "==============================================================================\n"
-printf "Installing Openstack Horizon service\n"
+printf "Installing Openstack Horizon service                                          \n"
 printf "==============================================================================\n"
 printf "Hit enter to continue: "; read ANS; echo
 
@@ -47,10 +47,13 @@ VANILLA=${HORIZON_CONF}.vanilla
 
 function horizon_install
 {
+	# list from I&D
 	printf "\nInstalling OpenStack Horizon\n"
 	set -x
-	apt-get install apache2 openstack-dashboard memcached
+	apt-get install openstack-dashboard memcached libapache2-mod-wsgi
 	set +x
+	printf "\nRemove the ubuntu theme:\n"
+	apt-get remove --purge openstack-dashboard-ubuntu-theme
 	printf "hit Enter to cont: "; read ANS; echo
 }
 
@@ -71,20 +74,10 @@ function horizon_configure
 QUANTUM_ENABLED = False
 '		$VANILLA > $HORIZON_CONF
 
-	# Default under Ubuntu is to install their theme. Can be overidden by setting HORIZON_THEME=default
-	UBUNTU_THEME=/etc/openstack-dashboard/ubuntu_theme.py
-	if [ -r $UBUNTU_THEME ]; then
-		case $HORIZON_THEME in
-			default)
-				printf "Reverting horizon theme to default:\n"
-				mv $UBUNTU_THEME ${UBUNTU_THEME/.py/.py-disabled}
-				;;
-			*)
-				printf "If you want to change the horizon theme to the ostk default, \n"
-				printf "rename (or delete) $UBUNTU_THEME\n\n"
-				;;
-		esac
-	fi
+	# The I&D doc says to verify that "CACHE_BACKEND in /etc/openstack-dashboard/local_settings.py 
+	# match the ones set in /etc/memcached.conf"
+	 printf "\nChecking CACHE_BACKEND value:\n"
+	grep CACHE_BACKEND /etc/openstack-dashboard/local_settings.py
 
 }
 
@@ -107,7 +100,7 @@ cat << EOMMM
   + Note2: Chrome has a known issue with VNC console (at least as of 2012-11-09)
 
   Login
-    User Name: admin
+    User Name: $ADMIN_USER
     Passowrd : $ADMIN_USER_PASSWORD
 
   Create an Instance: 
