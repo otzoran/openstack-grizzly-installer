@@ -8,6 +8,9 @@
 # handles CC, CN type
 # see configure_compute::doc for assumptions on entrance
 
+# TODO:
+# increase retention time for /etc/logrotate.d/nova-compute
+
 set -o errexit -o errtrace
 
 prog=$(basename $0)
@@ -119,14 +122,14 @@ function install_compute
 	set +x
 
 	# pm-utils is used by libvirt, for some reason it's not in "suggested"
-	printf "\nInstalling additional packages (fix dependencies)\n"
+	printf "\nInstalling additional packages for compute (fix dependencies)\n"
 	set -x
 	apt-get install  pm-utils
 	set +x
 
 	if [[ $NODE_TYPE == "compute" ]]; then
 		printf "\nstopping nova services:\n"
-		nova_services stop
+		nova_services stop || echo
 		printf "\nFinished compute related nova installation. nova services were stopped till configured.\n"
 	fi
 	printf "hit Enter to cont: "; read ANS; echo
@@ -152,7 +155,7 @@ function install_controller
 	printf "\nstopping nova services:\n"
 	# Stop the nova- services prior to running db sync. 
 	# Otherwise your logs show errors because the database has not yet been populated
-	nova_services stop
+	nova_services stop || echo
 
 	printf "\nFinished controller related nova installation. nova services were stopped till configured.\n"
 	printf "hit Enter to cont: "; read ANS; echo
@@ -380,13 +383,16 @@ if [[ $NODE_TYPE == "all-in-one" || $NODE_TYPE == compute ]]; then
 	configure_compute
 	nova_services start || echo		# CN will start just libvirt-bin nova-compute 
 	verify_services
-	printf "You may use the function \"delete_virbr0\" to wipe this interface\n"
+	printf "== libvirt virbr0 ==\n" 
+	printf "Check the function \"delete_virbr0\" in xfunctions.sh\n"
+	printf "It performs cleanup on virbr0 and iptable entries created by libvirt\n"
+	printf "which aren't used by OSTK\n\n"
 fi
 
 printf "\n\nAt this point you may create an instance from CLI:\n"
 printf "   . keystonerc\n   . xfunctions.sh\n   create_instance MY_INSTANCE_NAME\n"
-printf "and attach a floating IP to it:\nusing the function attach_floating_ip\n"
-printf "use nova list to see instance status\n\n"
+printf "Then may attach a floating IP using the function \"attach_floating_ip\"\n"
+printf "   nova list\nto see instance status\n\n"
 
 printf "==============================================================================\n"
 printf "Nova installation and configuration is complete.                              \n"
