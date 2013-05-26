@@ -96,20 +96,24 @@ function verify_networking
 	# TODO
 	# check iface up
 	# check IP ranges
+	printf " ... ok\n"
 	return 0
 
 }
 
 function set_hostname_properly
 {
-	printf "Checking /etc/hosts for proper hostname declaration\n"
+	printf "\nChecking /etc/hosts for proper hostname declaration:\n"
 	hname=$(uname -n)
-	if grep -q "127.0.1.1[ \t]*${hname}" /etc/hosts; then
-		sed -i 	\
-			-e "s/127.0.1.1\([ \t]*${hname}\)/$MYSQL_SERVER\1/" /etc/hosts
-		printf "... IP $MYSQL_SERVER now set in /etc/hosts ... recheck \n"
-	fi
-	if grep    "${hname}[ \t]*${hname}" /etc/hosts; then
+
+	# This works only for all-in-one
+#	if grep -q "127.0.1.1[ \t]*${hname}" /etc/hosts; then
+#		sed -i 	\
+#			-e "s/127.0.1.1\([ \t]*${hname}\)/$CC_HOST\1/" /etc/hosts
+#		printf "... IP $CC_HOST now set in /etc/hosts ... recheck \n"
+#	fi
+
+	if grep    "$CC_HOST[ \t]*${hname}" /etc/hosts; then
 		printf "... ok\n"
 		return 0
 	fi
@@ -117,7 +121,7 @@ function set_hostname_properly
 		# if we're here then the substit failed, do it manually:
 	printf "\nOpen a 2nd term, as root, edit /etc/hosts, replace the line:\n"
 	printf "127.0.1.1	$hname\n\tby this:\n"
-	printf "$MYSQL_SERVER	$hname\n\n"
+	printf "$CC_HOST	$hname\n\n"
 	printf "hit Enter after you finished that: "; read ANS; echo
 	return 0
 }
