@@ -208,8 +208,10 @@ function cinder_services
 	action=$1
 	for cinder_srv in 	\
 		cinder-api		\
-		cinder-volume	\
 		cinder-scheduler	\
+		cinder-volume		\
+		iscsitarget			\
+		open-iscsi			\
 		tgt				
 	do
 		if [ -e /etc/init.d/$cinder_srv ]; then
@@ -221,6 +223,19 @@ function cinder_services
 	# processes that stay around, suspected to be remainders of slopy stopped service:
 	# - iscsi
 	return 0
+}
+
+
+function cinder_create_volume
+{
+	[ $# -lt 1 ] && { echo "missing arg: vol size in GB"; return 1; }
+	typeset -n vol_size=$1
+	vol_name="test_vol_1"
+	printf "Creating a $vol_size GB cinder volume named $vol_name: \n"
+	set -x
+	cinder create --display_name $vol_name $vol_size
+	cinder list
+	set +x
 }
 
 

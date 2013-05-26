@@ -385,7 +385,8 @@ fi
 
 printf "\n\nAt this point you may create an instance from CLI:\n"
 printf "   . keystonerc\n   . xfunctions.sh\n   create_instance MY_INSTANCE_NAME\n"
-printf "and attach a floating IP to it:\nusing the function attach_floating_ip\n\n"
+printf "and attach a floating IP to it:\nusing the function attach_floating_ip\n"
+printf "use nova list to see instance status\n\n"
 
 printf "==============================================================================\n"
 printf "Nova installation and configuration is complete.                              \n"

@@ -1,12 +1,13 @@
 #!/bin/bash
 
 # Copyright (C) 2012-2013 Ori Tzoran <ori.tzoran@tikalk.com>
-# This file is part of Tikal's OpenStack Installer. See legal disclaimer install-ostk.sh
+# This file is part of Topstein, Tikal's OpenStack Installer. 
+# Legal disclaimer is in 'install-ostk.sh'
 
 #TODO: see Install-Doc =Installing and configuring Cinder=
 # http://docs.openstack.org/folsom/openstack-compute/install/apt/content/osfolubuntu-cinder.html
 
-set -e
+set -o errexit -o errtrace
 
 prog=$(basename $0)
 configfile=openstack.conf
@@ -33,54 +34,32 @@ else
 	exit 1
 fi
 
-if [ -x ./nova_services.sh ]; then
-	function nova_services { $PWD/nova_services.sh $1; }
+# Source in functions 
+if [ -f xfunctions.sh ]; then
+	.   xfunctions.sh
 else
-	printf "$prog [Error]: missing script nova_services.sh\n"
+	echo "$prog [Error]: functions file\"xfunctions.sh\" not found"
 	exit 1
 fi
 
 echo
 printf "==============================================================================\n"
-printf "Installing Openstack Cinder volume service\n"
+printf "Installing Openstack Cinder volume service                                    \n"
 printf "==============================================================================\n"
 printf "Hit enter to continue: "; read ANS; echo
 
 
 function cinder_install
 {
-	printf "\nVerifying nova-volume is NOT installed:\n"
-	if dpkg -l nova-volume; then
-		printf "nova-volume is installed. Run now in a 2nd term, as root:\n"
-		printf "\t \"apt-get purge nova-volume\" \n"
-		printf "hit Enter to cont: "; read ANS; echo
-		#exit 1
-	else
-		# if not installed, dpkg returns !=0 (No packages found...) and this aborts us
-		printf "ok\n"
-	fi
 
+	# I&D doc has same list as Folsom:
+	#  cinder-api cinder-scheduler cinder-volume open-iscsi python-cinderclient tgt
+	# Grizzly's list from B-I doc
 	printf "\nInstalling cinder packages\n"
 	set -x
-	apt-get install cinder-api cinder-scheduler cinder-volume open-iscsi python-cinderclient tgt
+	apt-get install cinder-api cinder-scheduler cinder-volume iscsitarget open-iscsi \
+		iscsitarget-dkms python-cinderclient
 	set +x
-}
-
-function cinder_auth
-{
-	##TODO: move from keystone here
-
-	# Mysql: Create (verif) Database and user
-	# mysql -u root -popenstack -e "show databases" | grep cinder
-	#mysql -u root -popenstack 	\
-	#	-e "SELECT user,host,password FROM mysql.user where user like 'cinder';"
-
-	# Keystone: user
-	# mysql -ukeystone -popenstack keystone -e "select extra from user where name='cinder';"
-
-	# Keystone: endpoint, service 
-
-	return 0
 }
 
 
@@ -88,9 +67,16 @@ CINDER_CONF=/etc/cinder/cinder.conf
 CINDER_API_PASTE=/etc/cinder/api-paste.ini
 NOVA_CONF=/etc/nova/nova.conf
 
-function config_etc 
+function cinder_config
 {
 	fname=${FUNCNAME[0]}
+
+	mysql_create_service_database "cinder"
+
+		# Configure & start the iSCSI services
+	sed -i 's/false/true/g' /etc/default/iscsitarget
+	service iscsitarget start
+	service open-iscsi start
 
 	printf "\nConfiguring cinder. Original files are saved as .vanilla\n"
 	VANILLA=${CINDER_API_PASTE}.vanilla
@@ -143,16 +129,9 @@ EOFF
 	if grep 'volume_api_class[ =]*nova.volume.cinder.API' $NOVA_CONF; then
 		printf "ok\n"
 	else
-		printf "$prog[$fname] Error: edit $NOVA_CONF set volume_api_class = nova.volume.cinder.API\n"
+		printf "$prog[$fname] Error: edit $NOVA_CONF to set volume_api_class = nova.volume.cinder.API\n"
 		return 1
 	fi
-
-	#printf "\nIn 2nd term edit /etc/nova/nova.conf - replace VOLUMES section by this:\n"
-	#cat << EOF
-	## Cinder
-	#volume_api_class=nova.volume.cinder.API
-	#enabled_apis=ec2,osapi_compute,metadata
-	#EOF
 
 	printf "hit Enter to cont: "; read ANS; echo
 
@@ -179,72 +158,19 @@ function config_vgs
 	printf "Hit enter to continue: "; read ANS; echo
 }
 
-function config_tgt
-{
-	## NOTE: 
-	# after install on opens9: 
-	# file /etc/tgt/conf.d/cinder_tgt.conf is in package cinder-volume, so the instructions below are irrelevant
-
-		# $state_path=/var/lib/cinder/ and 
-		# $volumes_dir = $state_path/volumes by default and path MUST exist!.
-		#printf "\nconfig_tgt\n"
-		#printf "get $state_path and $volumes_dir from /etc/cinder/cinder.conf \n"
-		#printf "This line will go into /etc/tgt/conf.d/cinder.conf\n"
-		#printf "\tinclude \$volumes_dir/*\n"
-		#printf "This should be:\n"
-		#printf "\tinclude /var/lib/cinder/volumes/*\n"
-
-	TGT_CINDER_CONF=/etc/tgt/conf.d/cinder_tgt.conf
-
-	if [[ -r $TGT_CINDER_CONF ]]; then
-		printf "Found $TGT_CINDER_CONF with this content:\n"
-		set -x
-		cat $TGT_CINDER_CONF
-		set +x
-	else
-		printf "WARNING: missing file $TGT_CINDER_CONF\n"
-		printf "This file should be in package cinder-volume.\nRead the script (%s) comments to fix.\n" $prog
-	fi
-	printf "Hit enter to continue: "; read ANS; echo
-	set -x
-	service tgt restart
-	set +x
-}
-
-function cinder_restart 
-{
-	#stop cinder-api
-	#start cinder-api
-	service cinder-api restart
-	#stop cinder-volume
-	#start cinder-volume
-	service cinder-volume restart
-}
-
-function cinder_create_volume
-{
-	#TODO: move to xfunctions
-	printf "Create a 1 GB test volume\n"
-	set -x
-	cinder create --display_name test 1
-	cinder list
-	set +x
-}
-
 # Main
 cinder_install
-config_etc
+cinder_config
 config_vgs	
-config_tgt
 
 cinder-manage db sync
 
 printf "hit Enter to restart nova services: "; read ANS; echo
 nova_services restart
-cinder_restart 
+cinder_services restart
 
 printf "==============================================================================\n"
-printf "Cinder installation and configuration is complete.\n"
+printf "Cinder installation and configuration is complete.                            \n"
 printf "==============================================================================\n"
 printf "Hit enter to continue: "; read ANS; echo
 
