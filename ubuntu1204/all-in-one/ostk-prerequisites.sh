@@ -71,10 +71,10 @@ printf "Hit return to continue: "; read ANS; echo
 function verify_networking
 {
 	#
-	# check exist (ip link) for PUBLIC_INTERFACE, PRIVATE_INTERFACE and BRIDGE_INTERFACE
+	# check exist (ip link) for PUBLIC_INTERFACE, PRIVATE_INTERFACE 
 	#
 	printf "Checking network interaces against declarations in $configfile\n"
-	for param in PUBLIC_INTERFACE PRIVATE_INTERFACE BRIDGE_INTERFACE; do
+	for param in PUBLIC_INTERFACE PRIVATE_INTERFACE ; do
 		iface=$(eval echo '$'${param})
 		if ! ip link show $iface > /dev/null 2>&1 ; then
 			printf "$prog Error: $param $iface doesn't exist.\n"
@@ -83,6 +83,15 @@ function verify_networking
 			exit 1
 		fi
 	done
+
+		# at this time, br100 isn't defined (and cannot be created cause bridge-utils isn't installed)
+	param=BRIDGE_INTERFACE
+	iface=$(eval echo '$'${param})
+	if ! grep -q $iface /etc/network/interfaces; then
+		printf "$prog Error: $param $iface isn't defined in /etc/network/interfaces\n"
+		printf "  fix that and start over\n\n"
+		exit 1
+	fi
 
 	# TODO
 	# check iface up
