@@ -99,7 +99,7 @@ function create_keystone_db
 	# Create the empty tables in keystone DB; 
 	keystone-manage db_sync
 
-	printf "keystone DB tables were just created, now empty.\nYou may test that running:\n"
+	printf "keystone DB tables were just created, now empty.\nCheck using:\n"
 	printf "     mysql -ukeystone -p$MYSQL_USER_PASS -e \"use keystone; show tables;\"\n"
 	printf "hit Enter after you finished that: "; read ANS; echo
 }
@@ -118,18 +118,18 @@ function setup_tenants_users_roles
 	# the Doc names the default user = admin; confusion with role "admin" (which is hardcoded in
 	# the json files!)
 	#ADMIN_USER=u_Admin # defined in openstack.conf
-	printf "Create a default user named $ADMIN_USER:\n"
+	printf "\nCreate a default user named $ADMIN_USER:\n"
 	set -x
 	keystone user-create --name $ADMIN_USER --tenant_id $DEFAULT_TENANT_ID	\
 		--pass $ADMIN_USER_PASSWORD --email root@localhost 
 	set +x
 	ADMIN_USER_ID=$(keystone user-list | grep "\ $ADMIN_USER\ " | awk '{print $2}')
 
-	printf "Create an administrative role based on keystone's default policy.json file, admin:\n"
+	printf "\nCreate admin role (an administrative role based on keystone's default policy.json):\n"
 	keystone role-create --name admin
 	ADMIN_ROLE_ID=$(keystone role-list       | grep "\ admin\ " | awk '{print $2}')
 
-	printf "Grant the admin role to the admin user in the $DEFAULT_TENANT tenant:\n"
+	printf "\nGrant the admin role to the $ADMIN_USER user in the $DEFAULT_TENANT tenant:\n"
 	set -x
 	keystone user-role-add --user_id $ADMIN_USER_ID --role_id $ADMIN_ROLE_ID --tenant_id $DEFAULT_TENANT_ID
 	set +x
@@ -156,6 +156,7 @@ function setup_tenants_users_roles
 	    keystone user-role-add --user_id $SERVICE_ID --role_id ${ADMIN_ROLE_ID} --tenant_id $SERVICE_TENANT_ID
 		set +x
 	done
+	printf "hit Enter to cont: "; read ANS; echo
 }
 
 function assert_keystone_catalog_sql
@@ -255,9 +256,9 @@ create_keystone_db
 
 export OS_SERVICE_ENDPOINT=http://$KEYSTONE_ENDPOINT:35357/v2.0/
 export OS_SERVICE_TOKEN=$SERVICE_TOKEN
+SERVICES="keystone nova glance cinder ec2"
 setup_tenants_users_roles
 assert_keystone_catalog_sql
-SERVICES="keystone nova glance cinder ec2"
 keystone_create_services
 keystone_create_endpoints
 
