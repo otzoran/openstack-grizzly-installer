@@ -23,10 +23,11 @@ Fixes to doc errata are included in the code herein.
 
 Tree layout
 ===========
-topstein
-└── ubuntu1204
-    └── all-in-one	KVM, nova-network, flatDHCP, single-host
-    └── N-nodes
-└── centos64
-    └── all-in-one
+   topstein
+   └── ubuntu1204
+       └── all-in-one	KVM, nova-network, flatDHCP, single-host
+       └── N-nodes
+   └── centos64
+       └── all-in-one
+
 
