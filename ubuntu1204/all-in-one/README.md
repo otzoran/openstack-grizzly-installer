@@ -1,39 +1,24 @@
-ostkInstal 
-==========
-Simplify installation of **_OpenStack Folsom_** inside a Virtualbox VM following 
+Topstein All-in-One
+===================
+Simplify installation of **_OpenStack Grizzly_** inside a Virtualbox VM following 
 the _official OpenStack Install_ guide.   
 Fixes to doc errata are included in the code herein.
 
     Copyright (C) 2012-2013 Ori Tzoran <ori.tzoran@tikalk.com>
-    
-    This file is part of Tikal's OpenStack Installer.
-    
-    Tikal's OpenStack Installer is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License version 3 as published by
-    the Free Software Foundation.
-    
-    Tikal's OpenStack Installer is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    
-    A copy of the GNU General Public License is in `COPYING`. If not, try 
-    /usr/share/common-licenses/GPL-3. If not, see <http://www.gnu.org/licenses/>
-
+    This file is part of Topstein, Tikal's OpenStack Extensible Installer. 
 
 Branches
 ========
-- **master** is for an all-in-one VM
-- **yokamina** is for a 2-node setup (VMs or bare-metal) of flatDHCP, single-host and nova-network
+- **master** current OSTK grizzly
 
 Ingredients
 ===========
-- Host PC, laptop or desktop , with:
+- Host PC, laptop or desktop, Minimal:
 	* BIOS: VT enabled
 	* CPU : x64 recommended
 	* RAM : 4GB at least 
 	* disk: 20GB free 
-	* nic : one, connected to the internet (wifi will do too)
+	* net : one nic, connected to the internet (wifi will do too)
 	* OS  : any of **Linux**, **Windows** or **MacOS** are supported (and tested)
 - Virtualbox 4.1 (4.2 may work, not tested)
 - Ubuntu Server 12.04 LTS amd64 ISO
@@ -49,18 +34,18 @@ See my blog at tikalk.com for detailed instructions and explanations
 * create a virtualbox VM
 	* from scratch: 10GB disk, 1G RAM, 1vCPU (those are the min values)
 	* or import OVA appliance (not covered here)
-* install Ubuntu server 
-	* with partitions and LVM configured to enable Cinder (was nova-volume)
-* configure the VM before boot
+* configure the VM before booting
 	* Settings->Network: make sure it has 3 network interfaces: NAT, vboxnet0, vboxnet1 
+* install Ubuntu server in the VM
+	* with partitions and LVM configured to enable Cinder (cinder-volumes)
 
 Login
 =====
 from the host PC, ssh to the VM. Using the preconfigured OVA this looks like this:   
 
-    ssh ori@172.16.0.5 	# _password is 1122_
+    ssh ostk@172.16.0.5 	# _password is 1122_
 
-from now on, all actions are performed inside the VM
+from now on, all actions are performed **inside the VM**
 
 Become root
 ===========
@@ -69,29 +54,30 @@ Become root
 
 Get the scripts
 ===============
-In a 2nd terminal, as user ori:
+In a 2nd terminal, as user **ostk**:
 
-    git clone git@bitbucket.org:otzoran/ostkinstal.git
-    cd ostkinstal
-    git checkout master # _or yokamina_
-	sudo -i			    # _and switch to root for the rest_
+    git clone https://github.com/otzoran/openstack-grizzly-installer.git topstein
+    cd topstein/ubuntu1204/all-in-one
+    git checkout master 
 
 Configure & Install
 ===================
-Instructions on what need to be done are printed before the installation is started.
-The scripts are interactive, use one tty to run the script and a 2nd for execution.
+There're no surprises, the script tells you what's about to happen and asks confirmation.
+As root, go to where the scripts are, r.g:
 
-As root:
+    cd ~/ostk/topstein/ubuntu1204/all-in-one
+    ./install-ostk.sh -h
 
-    cd ~/ostkinstal
-    ./install-ostk.sh
-
+And may the Force be with you...
 
 #References
 ## official OpenStack Doc 
-Install - [OpenStack Install and Deploy Manual - Ubuntu] (http://docs.openstack.org/folsom/openstack-compute/install/apt/content/index.html) revision 2012-11-09 Folsom, Compute 2012.2, Network 2012.2, Object Storage 1.4.8
+Install - [OpenStack Install and Deploy Manual - Ubuntu] (http://docs.openstack.org/grizzly/openstack-compute/install/apt/content/index.html) 
+Grizzly, 2013.1 (Object Storage 1.8.0)
+revision 2013-04-30
 
-Admin - [OpenStack Compute Administration Manual] (http://docs.openstack.org/folsom/openstack-compute/admin/content/index.html) "Folsom, 2012.2"
+Admin - [OpenStack Compute Administration Manual] (http://docs.openstack.org/grizzly/openstack-compute/admin/content/index.html) 
+"Grizzly, 2013.1"
 
 
 
