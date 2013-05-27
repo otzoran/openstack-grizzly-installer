@@ -76,8 +76,15 @@ QUANTUM_ENABLED = False
 
 	# The I&D doc says to verify that "CACHE_BACKEND in /etc/openstack-dashboard/local_settings.py 
 	# match the ones set in /etc/memcached.conf"
-	 printf "\nChecking CACHE_BACKEND value:\n"
-	grep CACHE_BACKEND /etc/openstack-dashboard/local_settings.py
+	# TODO: 2013-05-26 not found there
+	#printf "\nChecking CACHE_BACKEND value:\n"
+	#grep CACHE_BACKEND /etc/openstack-dashboard/local_settings.py
+
+	# COMPRESS_OFFLINE = True
+	# seems related to The Ubuntu package; may need to comment that
+
+	# TIME_ZONE
+	# default is TIME_ZONE = "UTC"
 
 }
 

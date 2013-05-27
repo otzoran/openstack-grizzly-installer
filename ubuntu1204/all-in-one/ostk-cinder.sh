@@ -71,12 +71,15 @@ function cinder_config
 {
 	fname=${FUNCNAME[0]}
 
+	printf "\nCreating database cinder:\n"
 	mysql_create_service_database "cinder"
 
-		# Configure & start the iSCSI services
+	printf "\nConfigure & start the iSCSI services:\n"
+	set -x
 	sed -i 's/false/true/g' /etc/default/iscsitarget
 	service iscsitarget start
 	service open-iscsi start
+	set +x
 
 	printf "\nConfiguring cinder. Original files are saved as .vanilla\n"
 	VANILLA=${CINDER_API_PASTE}.vanilla
