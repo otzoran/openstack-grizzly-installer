@@ -7,9 +7,15 @@ Fixes to doc errata are included in the code herein.
     Copyright (C) 2012-2013 Ori Tzoran <ori.tzoran@tikalk.com>
     This file is part of Topstein, Tikal's OpenStack Extensible Installer. 
 
+This will install OSTK grizzly in an all-ine-one setup with nova-network, flatDHCP, single-host; 
+hypervisor is QEMU. 
+This is a bare minimum setup, intentionally including only keystone, glance, nova, cinder and horizon. 
+This repo supports installation of the setup on baremetal, in which case KVM performs much better 
+than QEMU.
+
 Branches
 ========
-- **master** current OSTK grizzly
+- **master** 
 
 Ingredients
 ===========
@@ -78,7 +84,4 @@ revision 2013-04-30
 
 Admin - [OpenStack Compute Administration Manual] (http://docs.openstack.org/grizzly/openstack-compute/admin/content/index.html) 
 "Grizzly, 2013.1"
-
-
-
 
