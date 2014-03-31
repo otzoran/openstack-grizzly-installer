@@ -32,18 +32,22 @@ Ingredients
 
 Bootstrap
 =========
-See my blog at tikalk.com for detailed instructions and explanations
-## Highlights:
-* configure 2 virtualbox Host-only Networks:
+You may refer to my Essex blog at [tikalk.com](http://www.tikalk.com/alm/expreimenting-openstack-essex-ubuntu-1204-lts-under-virtualbox)
+for detailed instructions and explanations. Most of it is still relevant for **Grizzly**.
+
+### Highlights:
+* In virtualbox, configure 2 _Host-only Networks_:
 	* `vboxnet0` IPv4 172.16.0.254     mask 255.255.0.0   noDHCP
 	* `vboxnet1` IPv4 192.168.100.254  mask 255.255.255.0 noDHCP
-* create a virtualbox VM
+* Create a virtualbox VM
 	* from scratch: 10GB disk, 1G RAM, 1vCPU (those are the min values)
 	* or import OVA appliance (not covered here)
-* configure the VM before booting
+* Configure the VM before booting
 	* Settings->Network: make sure it has 3 network interfaces: NAT, vboxnet0, vboxnet1 
-* install Ubuntu server in the VM
+* Install Ubuntu server in the VM
+	* as user `ostk`
 	* with partitions and LVM configured to enable Cinder (cinder-volumes)
+	* assign static IP 172.16.0.5 to eth1
 
 Login
 =====
@@ -69,19 +73,23 @@ In a 2nd terminal, as user **ostk**:
 Configure & Install
 ===================
 There're no surprises, the script tells you what's about to happen and asks confirmation.
-As root, go to where the scripts are, r.g:
+As root, go to where the scripts are, e.g:
 
-    cd ~/ostk/topstein/ubuntu1204/all-in-one
-    ./install-ostk.sh -h
+    cd ~ostk/topstein/ubuntu1204/all-in-one
+    ./install-ostk.sh -h      # for help
 
 And may the Force be with you...
 
 #References
-## official OpenStack Doc 
+### official OpenStack Doc 
 Install - [OpenStack Install and Deploy Manual - Ubuntu] (http://docs.openstack.org/grizzly/openstack-compute/install/apt/content/index.html) 
 Grizzly, 2013.1 (Object Storage 1.8.0)
 revision 2013-04-30
 
 Admin - [OpenStack Compute Administration Manual] (http://docs.openstack.org/grizzly/openstack-compute/admin/content/index.html) 
 "Grizzly, 2013.1"
+
+### Tikal Blog
+[My guide for the Openstack Essex Release] (http://www.tikalk.com/alm/expreimenting-openstack-essex-ubuntu-1204-lts-under-virtualbox)
+
 
